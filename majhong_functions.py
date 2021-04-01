@@ -541,7 +541,8 @@ class Game():
         #           "pong","gong","win"]
         # *n: index for 0,1: nothing, 3,4 - indices
         
-        # returns  (player#,(choicenumber,*n))
+        # returns a list of [(player#,(choicenumber,*n)),((player#,(choicenumber,*n)))]
+        # (at most nplyaer-1 items.)
         mapping = Rules.move_lookup("help")
         number_of_choices = len(mapping)
         action_to_player = [None]*number_of_choices
@@ -555,12 +556,14 @@ class Game():
                 action_to_steptuple[choice] = steptuples[i]
         #print(action_to_player)
         #print(action_to_steptuple)
+        rankedoptions = []
         for k in range(len(action_to_player)-1,-1,-1):
             i = action_to_player[k]
             if i != None:
                 #print("person selected player: ",players[i],"\n steptuples",steptuples[i])
-                return (players[i],action_to_steptuple[k])
-        return (players[0],("draw",0))
+                rankedoptions.append((players[i],action_to_steptuple[k]))
+        rankedoptions.append((players[0],("draw",0)))
+        return rankedoptions
     
 
         
@@ -767,9 +770,10 @@ class GameManager(Game):
                     (decision,*n) = playertoact.makedecision(self.state,*info_forplayer)
                     every_player_choose.append([decision,*n])
                 print(every_player_choose)
-                (playernumber,(choice,*n)) = self.next_player_moves(*every_player_choose)
-                #### check for validity in next_player_moves function!!!!
-                self.dothemove(playernumber,choice,*n)
+                rankedoptions = self.next_player_moves(*every_player_choose)
+                print(rankedoptions)
+                self.dotherankedmoves(rankedoptions)
+                
                     
 
             elif self.state[0] == "out of cards":
@@ -787,6 +791,14 @@ class GameManager(Game):
             
         print("++++++++++++ Hope you enjoyed the game ++++++++++++++++++")
                 
+        
+    def dotherankedmoves(self,rankedoptions):
+        for playernumber,(choice,*n) in rankedoptions:
+            if self.dothemove(playernumber,choice,*n)==True:
+                self.printstate()
+                return
+       
+                
     def dothemove(self,player,choice,*n):
         move = choice
         if type(choice) == int:
@@ -794,25 +806,27 @@ class GameManager(Game):
             
         if move in ["nothing","draw"]:
             self.draw(self.next_player())
-
+            return True
+            
         elif move == "take in":
-            self.takein(player,*n)
-            self.notifystate(['take in ',player])
+            if self.takein(player,*n):return True
+            #self.notifystate(['take in ',player])
+            
             
         elif move == "pong":
-            self.pong(player,*n)
-            self.notifystate(['pong',player])
+            if self.pong(player,*n):return True
+            #self.notifystate(['pong',player])
             
         elif move == "gong":
-            self.gong(player,*n)
-            self.notifystate(['gong',player])
+            if self.gong(player,*n): return True
+            #self.notifystate(['gong',player])
             
         elif move == "win":
             if self.can_win(player):
                 self.gamelog.append((player,"win",None,None))
                 self.state = (4,player)
-        
-            self.notifystate()
+                return True
+
         
         
     def notifystate(self,special = None): # special = ['pong',3]
