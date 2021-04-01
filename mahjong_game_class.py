@@ -435,6 +435,32 @@ class GameManager(Game):
         print(outstr)
         return
         
+    def cheat(self,option='almost winning',player=1):
+        if option == 'almost winning':
+            self.playerhands[player].shown = []
+            self.playerhands[player].hidden = [Tiles('bamboo',4),
+                            Tiles('bamboo',5),Tiles('bamboo',6),
+                            Tiles('dragons',1),Tiles('dragons',1),
+                            Tiles('dragons',1),Tiles('winds',1),
+                            Tiles('winds',1),Tiles('winds',1),
+                            Tiles('dots',1),Tiles('dots',1),Tiles('dragons',2),
+                            Tiles('dragons',2)]
+            self.discardpile.append(Tiles('dragons',2))
+            self.state = ('discard' , (player+1)%self.players)
+            self.startgame()
+            
+        elif option == "win not discard":
+            self.playerhands[player].shown = []
+            self.playerhands[player].hidden = [Tiles('bamboo',4),
+                            Tiles('bamboo',5),Tiles('bamboo',6),
+                            Tiles('dragons',1),Tiles('dragons',1),
+                            Tiles('dragons',1),Tiles('winds',1),
+                            Tiles('winds',1),Tiles('winds',1),
+                            Tiles('dots',1),Tiles('dots',1),Tiles('dragons',2),
+                            Tiles('dragons',2),Tiles('dragons',2)]
+            self.discardpile.append(Tiles('dragons',3))
+            self.state = ('drawn' , player)
+            self.startgame()
     
     def pass_info_to_player(self,n):
         # return the state of affairs: 
