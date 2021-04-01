@@ -166,6 +166,18 @@ class Rules():
                     if Rules.istriplet_distinct(*three):
                         possible_groups.append(three)
                         possible_groups.append([i,j])
+    
+    def can(action,foreigntile,hand,*n):
+        group = [foreigntile] + [hand.hidden[i] for i in n]
+        if action in ["eat","take in"]:
+            return Rules.istriplet(*group)
+        if action in ["pong"]:
+            return Rules.istriplet_identical(*group)
+        if action in ["gong"]:
+            return Rules.isquadruplet(*group)
+        return False
+        
+        
         
     
     
@@ -458,6 +470,10 @@ class Game():
     
     
     def takein(self, player,*n):
+        if len(self.discardpile) < 1: return False
+        foreigntile = self.discardpile[-1]
+        hand = self.playerhands[player]
+        if not Rules.can("take in",foreigntile,hand,*n): return False
         foreigntile = self.discardpile.pop()
         self.last_taken_in = (foreigntile,
                               [self.playerhands[player].hidden[i] for i in n])
@@ -467,25 +483,32 @@ class Game():
         self.gamelog.append((player,"take in",foreigntile,
                                 [str(t) for t in triplet]))
             
-        return
+        return True
                 
     def pong(self,player,*n):
+        if len(self.discardpile) < 1: return False
+        foreigntile = self.discardpile[-1]
+        hand = self.playerhands[player]
+        if not Rules.can("pong",foreigntile,hand,*n): return False
         tf_ind = self.can_pong(player)
         if tf_ind:
-            foreigntile = self.discardpile[-1]
-            hand = self.playerhands[player]
+
             self.last_taken_in = (foreigntile,
                     [self.playerhands[player].hidden[i] for i in n])
-            print(n)
             hand.takein(foreigntile,*n)
             self.discardpile.pop()
             self.state = ("pong", player)
             self.gamelog.append((player,"pong",foreigntile,
                                 [foreigntile]*3))
+            return True
+        return False            
             
-
             
     def gong(self,player,*n):
+        if len(self.discardpile) < 1: return False
+        foreigntile = self.discardpile[-1]
+        hand = self.playerhands[player]
+        if not Rules.can("gong",foreigntile,hand,*n): return False
         tf_ind = self.can_gong(player)
         if tf_ind:
             foreigntile = self.discardpile[-1]
@@ -498,6 +521,8 @@ class Game():
             self.state = ("gong", player)
             self.gamelog.append((player,"gong",foreigntile,
                             [foreigntile]*4))
+            return True
+        return False
 
         
     def playerdiscard(self,n):
@@ -516,7 +541,7 @@ class Game():
         #           "pong","gong","win"]
         # *n: index for 0,1: nothing, 3,4 - indices
         
-        # returns (player#,(choicenumber,*n))
+        # returns  (player#,(choicenumber,*n))
         mapping = Rules.move_lookup("help")
         number_of_choices = len(mapping)
         action_to_player = [None]*number_of_choices
