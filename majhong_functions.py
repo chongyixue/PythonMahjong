@@ -131,7 +131,14 @@ class Rules():
                 if abs(tilelist[index] - tile) < 2:
                     return True
         return False
-            
+    
+    def relatable_to_hand(tile,hand,dist=2):
+        count = 0
+        for t in hand.hidden:
+            if abs(t-tile)<=dist:
+                count += 1
+        return count
+    
     def nsame(tile,hand):
         count = 0
         ls = []
@@ -548,6 +555,7 @@ class Game():
         action_to_player = [None]*number_of_choices
         action_to_steptuple = [None]*number_of_choices
         players = tuple([self.next_player(i) for i in range(1,self.players)])
+        print("steptuples = ",steptuples)
         for (i,(choice,*n)) in enumerate(steptuples):
             if type(choice) != int:
                 choice = Rules.move_lookup(choice)
@@ -607,7 +615,76 @@ class Player():
     
     def makedecision(self,gamestate, 
                      handlists, discardpile, ntilesleft, gamelog):
+        # handlist = [previous hand, own hand, next hand, next next hand]
+        
+        # the few situations where decision is needed
+        # 1. you drawn/ate/pong/gong a tile, now you have to pick one to discard
+        # 2. you drawn a tile, now you need to decide if you won, or to discard
+        # 3. others discarded a tile, decide to pong/gong/ate/win/do nothing
+        
+        # states = ['start','drawn','discard','out of cards','end']
+        # gamestate = [states[?], player#]
+        # RETURN (decision, *n)
+ 
+        #   mapping = ["do nothing", "draw","take in","pong with joker",
+        #           "pong","gong","win"]
+
+        if gamestate[0] == "discard": # somebody discarded, do you pong, eat, gong, nothing?
+            return self.action_take_simple(gamestate,handlists,discardpile,
+                                      ntilesleft,gamelog)
+            
+        if gamestate[0] == "drawn": # you drawn
+            winornot_decide = self.action_win_simple(gamestate,handlists,
+                                            discardpile,ntilesleft,gamelog)
+            if winornot_decide:
+                return ('win',None)
+            i = self.discard_simple(gamestate,handlists,discardpile,
+                                    ntilesleft,gamelog)
+            return (None, i)
+
+        if gamestate[0] in ["ate","pong","gong"]: #what do you discard?
+            i = self.discard_simple(gamestate,handlists,discardpile,
+                                    ntilesleft,gamelog)
+            return (None, i)
+
         return 0
+    
+    def discard_simple(self,gamestate,handlists,discardpile,ntilesleft,gamelog):
+        minn = 14
+        mini = 0
+        for (i,t) in enumerate(handlists[1].hidden):
+            n = Rules.relatable_to_hand(t,handlists[1]) 
+            if n < minn:
+                (minn,mini) = (n,i)
+        return mini
+    
+    def action_win_simple(self,gamestate,handlists,discardpile,ntilesleft,gamelog):
+        if len(discardpile) < 1:return False
+        group = handlists[1].hidden + [discardpile[-1]]
+        winningornot = Rules.iswinning(group)[0]
+        return winningornot
+    
+    def action_take_simple(self,gamestate,handlists,discardpile,ntilesleft,gamelog):
+        decision = random.choice(["gong","pong","eat","nothing","draw"])
+        print("-----decision-------",decision)
+        indices = [i for i in range(len(handlists[1].hidden))]
+        four = []
+        for k in range(4):
+            l = len(indices)
+            randi = random.randint(0,l-1)
+            four.append(indices.pop(randi))
+        
+        if decision in ["draw","nothing"]:
+            return ("nothing",[])
+        if decision == "eat":
+            return ("take in",*four[:3])
+        if decision == "pong":
+            return ("pong",*four[:3])
+        if decision == "gong":
+            return ("gong",*four[:4])
+        if decision == "win":
+            return ("win",[])
+        return ("nothing",[])
     
     
     
@@ -754,6 +831,9 @@ class GameManager(Game):
                 info_forplayer = self.pass_info_to_player(self.state[1])
                 self.printstate()
                 (decision,*n) = playertoact.makedecision(self.state,*info_forplayer)
+                
+                print("decision: ",decision, " \n n: ", n)
+                
                 i = n[0]
                 self.playerdiscard(i)
                 #self.gamelog.append((self.state[1],"discard",
@@ -768,6 +848,7 @@ class GameManager(Game):
                     playertoact = self.playerlist[p]
                     info_forplayer = self.pass_info_to_player(p)
                     (decision,*n) = playertoact.makedecision(self.state,*info_forplayer)
+                    print("decision: ",decision, " \n n: ", n)
                     every_player_choose.append([decision,*n])
                 print(every_player_choose)
                 rankedoptions = self.next_player_moves(*every_player_choose)
@@ -869,7 +950,8 @@ class GameManager(Game):
     
 playerinstancelist = [HumanPlayer(0),HumanPlayer(1),
                       HumanPlayer(2),HumanPlayer(3)]
-    
+playerinstancelist = [Player(0),Player(1),
+                      HumanPlayer(2),Player(3)]    
 game = GameManager(playerinstancelist=playerinstancelist)
 
 for i in range(4):
