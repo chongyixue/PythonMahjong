@@ -244,7 +244,7 @@ class Rules():
         return (False,None,None)
         
     def move_lookup(x):
-        mapping = ["do nothing", "draw","take in","pong with joker",
+        mapping = ["nothing", "draw","take in","pong with joker",
                    "pong","gong","win"]
         if type(x) == int:
             return mapping[x%len(mapping)]
@@ -352,7 +352,7 @@ class Game():
         
         self.statedescriptions = ['start','drawn','ate','pong','gong',
                                   'discard','out of cards','end']
-        self.state = (0,0) # state, currentplayer
+        self.state = ("start",0) # state, currentplayer
         
         self.distribute_tiles()
         self.last_taken_in = (None,None)
@@ -365,7 +365,7 @@ class Game():
         if type(state) == int:
             return mapping[state%len(mapping)]
         for i in range(len(mapping)):
-            if mapping(i) == state:
+            if mapping[i] == state:
                 return i
         return "state mapping failed"
     
@@ -384,7 +384,7 @@ class Game():
                 ntiles[i] = len(self.playerhands[i].hidden)
                 diff = target[i] - ntiles[i]
                 self.draw_end(i, diff)
-        self.state = (1,0)
+        self.state = ("drawn",0)
         
         
         
@@ -405,7 +405,7 @@ class Game():
             tile = self.alltiles[self.drawpointer]
             self.playerhands[player].draw(tile)
             self.drawpointer += 1
-        self.state = (1,self.next_player())
+        self.state = ("drawn",self.next_player())
         return
     
     def draw_end(self,player,n=1):
@@ -416,31 +416,29 @@ class Game():
         return
         
     def discard(self, player,n):
-        self.discardpile.append(self.playerhands[player].discard(n))
+        discardedtile = self.playerhands[player].discard(n)
+        self.discardpile.append(discardedtile)
         return
         
 
     
     def can_eat(self, player):
-        if self.state[0] == 2:
-            (tf,pos_ind,pos_group) = Rules.can_form_group(self.discardpile[-1],
-                                        self.playerhands[player])
-            if tf:
-                return (tf,pos_ind,pos_group)
+        (tf,pos_ind,pos_group) = Rules.can_form_group(self.discardpile[-1],
+                                    self.playerhands[player])
+        if tf:
+            return (tf,pos_ind,pos_group)
         return False
         
     def can_pong(self, player):
-        if self.state[0] == 2:
-            (count,ind) = Rules.nsame(self.discardpile[-1],self.playerhands[player])
-            if count > 1:
-                return (True,ind[0:2])
+        (count,ind) = Rules.nsame(self.discardpile[-1],self.playerhands[player])
+        if count > 1:
+            return (True,ind[0:2])
         return False
     
     def can_gong(self,player):
-        if self.state[0] == 2:
-            (count,ind) = Rules.nsame(self.discardpile[-1],self.playerhands[player])
-            if count > 2:
-                return (True,ind[0:3])
+        (count,ind) = Rules.nsame(self.discardpile[-1],self.playerhands[player])
+        if count > 2:
+            return (True,ind[0:3])
         return False
     
     def can_win(self,player):
@@ -457,24 +455,27 @@ class Game():
         foreigntile = self.discardpile.pop()
         self.last_taken_in = (foreigntile,
                               [self.playerhands[player].hidden[i] for i in n])
-        self.playerhands[player].takein(player,foreigntile,*n)
+        self.playerhands[player].takein(foreigntile,*n)
         self.state = ("ate",player)
         return
                 
     def pong(self,player,*n):
-        tf_ind = self.can_pong(self,player)
+        tf_ind = self.can_pong(player)
+        print("hopefully pong in pong mehtod printed", tf_ind)
         if tf_ind:
+            print("pong in pong method")
             foreigntile = self.discardpile[-1]
             hand = self.playerhands[player]
             self.last_taken_in = (foreigntile,
                     [self.playerhands[player].hidden[i] for i in n])
+            print(n)
             hand.takein(foreigntile,*n)
             self.discardpile.pop()
             self.state = ("pong", player)
 
             
     def gong(self,player,*n):
-        tf_ind = self.can_gong(self,player)
+        tf_ind = self.can_gong(player)
         if tf_ind:
             foreigntile = self.discardpile[-1]
             self.last_taken_in = (foreigntile,
@@ -487,11 +488,10 @@ class Game():
 
         
     def playerdiscard(self,n):
-        state,player = self.state
-        if state == 1:
-            if n < len(self.playerhands[player].hidden):
-                self.discard(player,n)
-                self.state = ("discard", player)
+        _,player = self.state
+        if n < len(self.playerhands[player].hidden):
+            self.discard(player,n)
+            self.state = ("discard", player)
 
     def next_player_moves(self,*steptuples):
         # steptuples: (choice, *n)
@@ -501,22 +501,26 @@ class Game():
         #           "pong","gong","win"]
         # *n: index for 0,1: nothing, 3,4 - indices
         
-        # returns (player#,(choice,*n))
+        # returns (player#,(choicenumber,*n))
         mapping = Rules.move_lookup("help")
         number_of_choices = len(mapping)
         action_to_player = [None]*number_of_choices
+        action_to_steptuple = [None]*number_of_choices
         players = tuple([self.next_player(i) for i in range(1,self.players)])
         for (i,(choice,*n)) in enumerate(steptuples):
             if type(choice) != int:
                 choice = Rules.move_lookup(choice)
             if action_to_player[choice] == None:
                 action_to_player[choice] = i
-        
+                action_to_steptuple[choice] = steptuples[i]
+        #print(action_to_player)
+        #print(action_to_steptuple)
         for k in range(len(action_to_player)-1,-1,-1):
             i = action_to_player[k]
-            if i:
-                return (players[i],steptuples[i])
-        return (players[0],(1,0))
+            if i != None:
+                #print("person selected player: ",players[i],"\n steptuples",steptuples[i])
+                return (players[i],action_to_steptuple[k])
+        return (players[0],("draw",0))
     
 
         
@@ -525,7 +529,8 @@ class Game():
         #self.statedescriptions = ['start','drawn','ate','pong','gong',
         #                          'discard','out of cards','end']
         state, player = self.state        
-        state = self.statemapping(state)
+        if type(state) == int:
+            state = self.statemapping(state)
         if state == "start":
             outstr = "Game Start"
         elif state == "drawn":
@@ -533,15 +538,20 @@ class Game():
         elif state == "ate":
             outstr = "player " + str(player) + " took in " \
                 + str(self.last_taken_in)
-                
+        elif state in ["pong","gong"]:
+            outstr = "player " + str(player) + " " + state + " " \
+                + str(self.last_taken_in)
+        
         elif state == "discard":
             outstr ="player " + str(player) + " discarded " \
                 + str(self.discardpile[-1]) 
-        elif state == 3:
+        elif state == "out of cards":
             outstr = "game over: out of cards"
-        else:
+        elif state == "end":
             outstr ="game over: winner is player " +  str(player)
-            
+        else:
+            outstr = "state " + str(state) + " not recognized"
+
         if printoutstr: print(outstr)
         return outstr
 
@@ -568,6 +578,7 @@ class HumanPlayer(Player):
         # states = ['start','drawn','discard','out of cards','end']
         # gamestate = [states[?], player#]
         # RETURN (decision, *n)
+    
         print("------------------------------------")
         print("Player ",self.playernumber)
         print("------------------------------------")
@@ -580,7 +591,7 @@ class HumanPlayer(Player):
         lastdiscard = None
         if discardpile:
             lastdiscard = discardpile[-1]
-        if gamestate[0] == 2: # somebody discarded, do you pong, eat, gong, nothing?
+        if gamestate[0] == "discard": # somebody discarded, do you pong, eat, gong, nothing?
             outstr = "player "+str(lastplayer) +" discarded Tile " \
                         + str(lastdiscard) \
                         + self.makeactionstring((0,"nothing"),(1,"draw"),
@@ -589,25 +600,31 @@ class HumanPlayer(Player):
             decision = int(self.getuserresponse(outstr, [0,1,2,3,4,5]))
             
             if decision in [0,1]:
-                return decision,
-            if decision in [2,3]:
+                return ("nothing",[])
+            if decision == 2:
                 indexlist = self.askwhichtiles(2,handlists[1])
-                return (decision,*indexlist)
+                return ("take in",*indexlist)
+            if decision == 3:
+                indexlist = self.askwhichtiles(2,handlists[1])
+                return ("pong",*indexlist)
             if decision == 4:
                 indexlist = self.askwhichtiles(3,handlists[1])
-                return (5,*indexlist)
+                return ("gong",*indexlist)
             if decision == 5:
-                return (6,None)
+                return ("win",[])
             
-        if gamestate[0] == 1: # you drawn/ate/pong/gong or win?, what do you discard?
+        if gamestate[0] == "drawn": # you drawn
             outstr = "0 - discard, 1 - claim victory \n"
             decision = int(self.getuserresponse(outstr,[0,1]))
             if decision == 1: # claim victory
-                return (6,None)
+                return ('win',None)
             i_discard = self.askwhichtiles(1,handlists[1])[0]
+            print("i_discard = ",i_discard)
             return (None,i_discard)
             
-        
+        if gamestate[0] in ["ate","pong","gong"]: #/ate/pong/gong or win?, what do you discard?
+            i_discard = self.askwhichtiles(1,handlists[1])[0]
+            return (None,i_discard)
             
     def askwhichtiles(self,n,hand):
         handstr1 = " "
@@ -681,24 +698,26 @@ class GameManager(Game):
         # RETURN (decision, n)
 
         while True:
+            print("game.state = ", game.state)
             if self.autoarrange:
                 for hand in self.playerhands:
                     hand.arange()
                     
             
-            if self.state[0] == 1: 
+            if self.state[0] in ["drawn","pong","ate","gong"]: 
                 # some player drawn. Ask for decision (which tile to discard)
-                
                 playertoact = self.playerlist[self.state[1]]
   
                 info_forplayer = self.pass_info_to_player(self.state[1])
+                self.printstate()
                 (decision,*n) = playertoact.makedecision(self.state,*info_forplayer)
-                self.playerdiscard(*n)
+                i = n[0]
+                self.playerdiscard(i)
                 self.gamelog.append((self.state[1],"discard",
                                     str(self.discardpile[-1]),
                                     None))
                 
-            elif self.state[0] == 2:
+            elif self.state[0] == "discard":
                 # some player discard a tile. Ask everyone for a decision
                 every_player_choose = []
                 for i in range(1,self.players):
@@ -707,46 +726,60 @@ class GameManager(Game):
                     info_forplayer = self.pass_info_to_player(p)
                     (decision,*n) = playertoact.makedecision(self.state,*info_forplayer)
                     every_player_choose.append([decision,*n])
+                print(every_player_choose)
                 (playernumber,(choice,*n)) = self.next_player_moves(*every_player_choose)
                 #### check for validity in next_player_moves function!!!!
-                print("who gets to do what? ",playernumber, Rules.move_lookup(choice),
+                action = choice;
+                if type(choice) == int:
+                    action = Rules.move_lookup(choice)
+                print("who gets to do what? ",playernumber, action,
                       " some cards indexes ",n)
                 self.dothemove(playernumber,choice,*n)
                     
 
-            elif self.state[0] == 3:
+            elif self.state[0] == "out of cards":
                 # out of cards
                 break
             
-            elif self.state[0] == 4:
+            elif self.state[0] == "end":
                 # end game
                 break
+            
+            else:
+                print("state ",self.state[0], " not recognized")
+                break
+            
+            
         print("++++++++++++ Hope you enjoyed the game ++++++++++++++++++")
                 
     def dothemove(self,player,choice,*n):
         #mapping = ["do nothing", "draw","take in","pong with joker",
         #          "pong","gong","win"]
-        move = Rules.move_lookup(choice)
+        move = choice
+        if type(choice) == int:
+            move = Rules.move_lookup(choice)
         if move == "nothing" or "draw":
             self.draw(self.next_player())
 
         if move == "take in":
             takeintile = str(self.discardpile[-1])
+            print(n)
             self.takein(player,*n)
-            self.state = (1,player)
+            self.state = ("ate",player)
             triplet = self.playerhands[player].shown[-3::]
             self.gamelog.append((player,"take in",takeintile,
                                 [str(t) for t in triplet]))
             self.notifystate(['take in ',player])
         elif move == "pong":
+            print("pong: player - ",player,"| choice--",choice, "n:",n)
             takeintile = str(self.discardpile[-1])
-            self.pong(player)
+            self.pong(player,*n)
             self.gamelog.append((player,"pong",takeintile,
                                 [takeintile]*3))
             self.notifystate(['pong',player])
         elif move == "gong":
             takeintile = str(self.discardpile[-1])
-            self.gong(player)
+            self.gong(player,*n)
             self.gamelog.append((player,"gong",takeintile,
                                 [takeintile]*4))
             self.notifystate(['gong',player])
@@ -800,7 +833,15 @@ playerinstancelist = [HumanPlayer(0),HumanPlayer(1),
                       HumanPlayer(2),HumanPlayer(3)]
     
 game = GameManager(playerinstancelist=playerinstancelist)
+
+for i in range(4):
+    print("player ",i)
+    game.playerhands[i].console_show(hidden=True)
+
+
 game.startgame()
+    
+    
 #bot = Player(1)
 #human = HumanPlayer(1)
 
