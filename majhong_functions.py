@@ -6,7 +6,8 @@ Created on Tue Mar 30 09:20:06 2021
 """
 
 import random
-
+import csv
+import os
 
 class Tiles:
     
@@ -605,6 +606,24 @@ class Game():
 
         if printoutstr: print(outstr)
         return outstr
+
+    def savelog(self):
+        script_dir = os.path.dirname(__file__) 
+        log_dir = os.path.join(script_dir,'log')
+        if not os.path.exists('log'):
+            os.makedirs('log')
+        name = 'gamelog_'
+        i = 1
+        fullname = name + str(i) + '.csv'
+        while fullname in os.listdir(log_dir):
+            i += 1
+            fullname = name + str(i) + '.csv'
+        
+        fullpath = os.path.join(log_dir,fullname)
+        with open(fullpath,mode='w',newline='') as logfile:
+            writer = csv.writer(logfile, delimiter=',')
+            writer.writerows(self.gamelog)
+            
 
 
 class Player():
