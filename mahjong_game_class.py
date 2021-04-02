@@ -97,6 +97,10 @@ class Game():
         
     
     def draw(self,player,n = 1,record=True):
+        if self.drawpointer > self.flowerpointer:
+            self.state = ("out of cards",player)
+            return
+        
         for _ in range(n):
             tile = self.alltiles[self.drawpointer]
             self.playerhands[player].draw(tile)
@@ -107,6 +111,10 @@ class Game():
         return
     
     def draw_end(self,player,n=1,record = True):
+        if self.drawpointer > self.flowerpointer:
+            self.state = ("out of cards",player)
+            return
+        
         for _ in range(n):
             tile = self.alltiles[self.flowerpointer]
             self.playerhands[player].draw(tile)
@@ -237,7 +245,7 @@ class Game():
         action_to_player = [None]*number_of_choices
         action_to_steptuple = [None]*number_of_choices
         players = tuple([self.next_player(i) for i in range(1,self.players)])
-        print("steptuples = ",steptuples)
+        #print("steptuples = ",steptuples)
         for (i,(choice,*n)) in enumerate(steptuples):
             if type(choice) != int:
                 choice = Rules.move_lookup(choice)
@@ -288,12 +296,12 @@ class Game():
         if printoutstr: print(outstr)
         return outstr
 
-    def savelog(self):
+    def savelog(self,name = 'gamelog'):
         script_dir = os.path.dirname(__file__) 
         log_dir = os.path.join(script_dir,'log')
         if not os.path.exists('log'):
             os.makedirs('log')
-        name = 'gamelog_'
+        name = name + '_'
         i = 1
         fullname = name + str(i) + '.csv'
         while fullname in os.listdir(log_dir):
@@ -328,7 +336,7 @@ class GameManager(Game):
         # RETURN (decision, n)
 
         while True:
-            print("game.state = ", self.state)
+            
             if self.autoarrange:
                 for hand in self.playerhands:
                     hand.arange()
@@ -344,10 +352,11 @@ class GameManager(Game):
                 chances = 3
                 for _ in range(chances):
                     (decision,*n) = playertoact.makedecision(self.state,*info_forplayer)
-                    print("decision ",decision, "  n=",n)
+                    #print("decision ",decision, "  n=",n)
                     if decision == "win" and canwin:
                         canwin = self.win(self.state[1])
-                        print(canwin)
+                        self.printstate()
+                        #print(canwin)
                         if canwin:
                             break
                     else:
@@ -375,21 +384,23 @@ class GameManager(Game):
                     playertoact = self.playerlist[p]
                     info_forplayer = self.pass_info_to_player(p)
                     (decision,*n) = playertoact.makedecision(self.state,*info_forplayer)
-                    print("decision: ",decision, " \n n: ", n)
+                    #print("decision: ",decision, " \n n: ", n)
                     every_player_choose.append([decision,*n])
-                print(every_player_choose)
+                #print(every_player_choose)
                 rankedoptions = self.next_player_moves(*every_player_choose)
-                print(rankedoptions)
+                #print(rankedoptions)
                 self.dotherankedmoves(rankedoptions)
                 
                     
 
             elif self.state[0] == "out of cards":
                 # out of cards
+                self.printstate()
                 break
             
             elif self.state[0] in ["win", "end"]:
                 # end game
+                self.printstate()
                 break
             
             else:
@@ -397,13 +408,15 @@ class GameManager(Game):
                 break
             
             
+            self.printstate()
+            
         print("++++++++++++ Hope you enjoyed the game ++++++++++++++++++")
                 
         
     def dotherankedmoves(self,rankedoptions):
         for playernumber,(choice,*n) in rankedoptions:
             if self.dothemove(playernumber,choice,*n)==True:
-                self.printstate()
+                #self.printstate()
                 return
        
                 

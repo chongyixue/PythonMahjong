@@ -68,7 +68,7 @@ class Player():
     
     def action_take_simple(self,gamestate,handlists,discardpile,ntilesleft,gamelog):
         decision = random.choice(["gong","pong","eat","nothing","draw"])
-        print("-----decision-------",decision)
+        #print("-----decision-------",decision)
         indices = [i for i in range(len(handlists[1].hidden))]
         four = []
         for k in range(4):
