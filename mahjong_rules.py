@@ -117,7 +117,7 @@ class Rules():
             if eye==True:
                 return (tilelist[0]==tilelist[1],None,[tilelist])
             
-            return False
+            return (False,None,None)
         if l == 3:
             if eye == True:
                 return (False,None,None)

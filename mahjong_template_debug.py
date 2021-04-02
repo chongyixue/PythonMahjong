@@ -20,9 +20,6 @@ playerinstancelist = [Player(0),HumanPlayer(1),
 game = GameManager(playerinstancelist=playerinstancelist)
 game.cheat('win not discard')
 
-for i in range(4):
-    print("player ",i)
-    game.playerhands[i].console_show(hidden=True)
 
 
 #game.startgame()

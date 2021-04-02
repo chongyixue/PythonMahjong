@@ -205,6 +205,13 @@ class Game():
                             [foreigntile]*4))
             return True
         return False
+    
+    def win(self,player):
+        if self.can_win(player):
+            self.gamelog.append((player,"win",None,None))
+            self.state = ("win",player)
+            return True
+        
 
         
     def playerdiscard(self,n):
@@ -273,7 +280,7 @@ class Game():
                 + str(self.discardpile[-1]) 
         elif state == "out of cards":
             outstr = "game over: out of cards"
-        elif state == "end":
+        elif state in ["end","win"]:
             outstr ="game over: winner is player " +  str(player)
         else:
             outstr = "state " + str(state) + " not recognized"
@@ -330,19 +337,36 @@ class GameManager(Game):
             if self.state[0] in ["drawn","pong","ate","gong"]: 
                 # some player drawn. Ask for decision (which tile to discard)
                 playertoact = self.playerlist[self.state[1]]
-  
                 info_forplayer = self.pass_info_to_player(self.state[1])
-                self.printstate()
-                (decision,*n) = playertoact.makedecision(self.state,*info_forplayer)
                 
-                print("decision: ",decision, " \n n: ", n)
-                
-                i = n[0]
+                # protection against rogue answers
+                canwin = True
+                chances = 3
+                for _ in range(chances):
+                    (decision,*n) = playertoact.makedecision(self.state,*info_forplayer)
+                    print("decision ",decision, "  n=",n)
+                    if decision == "win" and canwin:
+                        canwin = self.win(self.state[1])
+                        print(canwin)
+                        if canwin:
+                            break
+                    else:
+                        canwin = False
+                        break
+                if canwin:
+                    break
+                        
+                # decision = "discard by no choice here"
+                if len(n)==0:
+                    i = 0
+                else:
+                    i = n[0]
+                if i == None:
+                    i = 0
                 self.playerdiscard(i)
-                #self.gamelog.append((self.state[1],"discard",
-                #                    str(self.discardpile[-1]),
-                #                    None))
-                
+                        
+                    
+                    
             elif self.state[0] == "discard":
                 # some player discard a tile. Ask everyone for a decision
                 every_player_choose = []
@@ -364,7 +388,7 @@ class GameManager(Game):
                 # out of cards
                 break
             
-            elif self.state[0] == "end":
+            elif self.state[0] in ["win", "end"]:
                 # end game
                 break
             
@@ -406,9 +430,7 @@ class GameManager(Game):
             #self.notifystate(['gong',player])
             
         elif move == "win":
-            if self.can_win(player):
-                self.gamelog.append((player,"win",None,None))
-                self.state = (4,player)
+            if self.win(player): 
                 return True
 
         
