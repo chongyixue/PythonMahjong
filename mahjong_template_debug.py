@@ -19,14 +19,15 @@ playerinstancelist = [Player(0),HumanPlayer(1),
                       Player(2),Player(3)]    
 playerinstancelist = [Player(0),Player(1),
                       Player(2),Player(3)] 
-#game = GameManager(playerinstancelist=playerinstancelist)
+game = GameManager(playerinstancelist=playerinstancelist)
 #game.cheat('win not discard')
 
 
 
-#game.startgame()
+game.startgame()
 #game.savelog()
 
+"""
 wincount = 0
 total = 0
 for _ in range(200):
@@ -37,4 +38,4 @@ for _ in range(200):
     total += 1
 print("winning count = ",wincount)
 print("winning fraction = ",wincount/total)
-
+"""
