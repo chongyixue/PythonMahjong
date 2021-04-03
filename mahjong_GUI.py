@@ -15,20 +15,66 @@ from PIL import Image, ImageTk
 class TileButton():
     def __init__(self,tile,masterframe,clickable=True,**options):
         self.__tile = tile
-        script_dir = os.path.dirname(__file__) 
-        image_dir = os.path.join(script_dir,'tileimages')
-        self.__fullimagename = os.path.join(image_dir,self.imagename())        
-        self.__clickable = clickable
-        self.__text = str(tile)
+
         self.__frame = masterframe
-        image = Image.open(self.__fullimagename)
-        self.__imagetk = ImageTk.PhotoImage(image)
+        self.__framename = ""
+        if 'framename' in options.keys():
+            self.__framename = options['framename']
+        self.__image_options(**options,clickable=clickable)
+        
+        
         self.__button =  tk.Button(
                 master=self.__frame,
                 text=self.__text,
                 image = self.__imagetk,
-                compound = "top"
+                compound = self.__compound
         )
+        
+    def __image_options(self,**options):
+        script_dir = os.path.dirname(__file__) 
+        image_dir = os.path.join(script_dir,'tileimages')
+        self.__fullimagename = os.path.join(image_dir,self.imagename()) 
+        self.__clickable = options['clickable']
+        compound = "top"
+        orientation = 0
+        self.__scale = 1
+        self.__scale_relative = 0.7
+        scale = self.__scale
+        if 'orientation' in options.keys():
+            if options['orientation'] == 'invert':
+                orientation = 180
+                scale = self.__scale_relative
+            elif options['orientation'] == 'left':
+                orientation = -90
+                compound = "left"
+                scale = self.__scale_relative            
+            elif options['orientation'] == 'right':
+                orientation = 90
+                compound = "right"
+                scale = self.__scale_relative
+            self.__orientation = orientation
+        self.__compound = compound
+        
+        self.__text = str(self.__tile)
+        self.__showtext = True
+        
+        if 'hidden' in options.keys():
+            if options["hidden"] == True:
+                self.__showtext = False
+                self.__fullimagename = os.path.join(image_dir,'green.jpg')  
+                self.__clickable = False
+                self.__text = ""
+        
+        if 'showtext' in options.keys():
+            if not options['showtext']:
+                self.__text = ""
+        
+        image = Image.open(self.__fullimagename)
+        image = image.rotate(orientation, expand=True)
+        image = image.resize([int(s*scale) for s in image.size])
+        self.__imagetk = ImageTk.PhotoImage(image)
+
+
 
     def get_imagetk(self):
         return self.__imagetk
@@ -99,17 +145,33 @@ class TileButton():
 ## obiously class of baroftiles not working
         
 class BarOfTiles():
-    def __init__(self,tilelist,frame):
+    def __init__(self,tilelist,frame,**options):
         self.__master = frame
         self.__tilelist = tilelist
+        self.__orientation = 'upright' 
+        self.__framename = ""
+        if 'framename' in options.keys():
+            self.__framename = options['framename']
         
+        if 'orientation' in options.keys():
+            self.__orientation = options['orientation']
+        pack = tk.LEFT
+        if self.__orientation == 'invert':
+            pack = tk.RIGHT
+        elif self.__orientation == "left":
+            pack = tk.TOP
+        elif self.__orientation == "right":
+            pack = tk.BOTTOM
+        self.__pack = pack
+        self.packtiles(**options)
 
-    def packtiles(self):
+    def packtiles(self,**options):
         tblist = []
         buttonlist = []
         tilelist = self.__tilelist
         for i in range(len(tilelist)):
-            tb = TileButton(tilelist[i],self.__master)
+            tb = TileButton(tilelist[i],self.__master,
+                            **options)
             tblist.append(tb)
     
         for i in range(len(tilelist)):
@@ -117,18 +179,22 @@ class BarOfTiles():
             button = tb.get_button()
             tile = tb.get_tile()
     
-            def handler(event,tile=tile):
-                return handle_click(event,tile)
+            def handler(event,tile=tile,framename=self.__framename):
+                return handle_click(event,tile=tile,framename=framename)
+                #return handle_click(event,tile,framename)
     
             button.bind("<Button-1>",handler)
-            button.pack(side=tk.LEFT) 
+            button.pack(side=self.__pack) 
             buttonlist.append(button)
-        return (tblist,buttonlist)
+            self.tblist = tblist
+            self.buttonslit = buttonlist
 
 
 
-def handle_click(event,tile):
-    print(tile," was clicked!")
+#def handle_click(event,tile, framename):
+#    print(tile," from ",framename ," was clicked!")
+def handle_click(event,**args):
+    print(args['tile']," from ",args['framename']," was clicked!")
 
 
 window = tk.Tk()
@@ -138,17 +204,27 @@ tilelist = [Tiles("dragons",1),Tiles("dragons",1),Tiles("dragons",1),
           Tiles("winds",1),Tiles("winds",1),Tiles("winds",1),
           Tiles("winds",2),Tiles("winds",2)]
 
+
 frame = tk.Frame(master=window)
 frame2 = tk.Frame(master=window)
+frame3 = tk.Frame(master=window)
+frame4 = tk.Frame(master=window)
 
-frame.grid(row=0,column=0)
-frame2.grid(row=1,column=1)
+frame.grid(row=2,column=1)
+frame2.grid(row=1,column=2)
+frame3.grid(row=0,column=1)
+frame4.grid(row=1,column=0)
 
-bar = BarOfTiles(tilelist,frame)   
-bar2 = BarOfTiles(tilelist,frame2)  
 
-tblist = bar.packtiles()
-tblist2 = bar2.packtiles()
+bar = BarOfTiles(tilelist,frame,framename = 'player') 
+bar3 = BarOfTiles(tilelist,frame3,framename = 'across',
+                  orientation='invert',hidden=True)  
+bar2 = BarOfTiles(tilelist,frame2, framename = 'right',
+                  orientation='right',hidden=True)  
+bar4 = BarOfTiles(tilelist,frame4,framename = 'left',
+                  orientation='left',hidden=True)  
+
+
 
 
 tk.mainloop()
