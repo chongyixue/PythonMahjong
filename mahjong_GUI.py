@@ -23,17 +23,29 @@ class TileButton():
         self.__frame = masterframe
         image = Image.open(self.__fullimagename)
         self.__imagetk = ImageTk.PhotoImage(image)
+        self.__button =  tk.Button(
+                master=self.__frame,
+                text=self.__text,
+                image = self.__imagetk,
+                compound = "top"
+        )
+
+    def get_imagetk(self):
+        return self.__imagetk
 
     def get_tile(self):
         return self.__tile
         
     def get_button(self):
+        return self.__button
+        """
         return tk.Button(
                 master=self.__frame,
                 text=self.__text,
                 image = self.__imagetk,
                 compound = "top"
         )
+        """
 
     def get_fullimagename(self):
         return self.__fullimagename
@@ -82,9 +94,129 @@ class TileButton():
                 name = "flower" + str(tile.number)
         return name + ".jpg"
 
-    
-#windows = tk.Tk()
 
+
+## obiously class of baroftiles not working
+        
+class BarOfTiles():
+    def __init__(self,tilelist,frame):
+        self.__master = frame
+        self.__tilelist = tilelist
+        
+
+    def packtiles(self):
+        tblist = []
+        buttonlist = []
+        tilelist = self.__tilelist
+        for i in range(len(tilelist)):
+            tb = TileButton(tilelist[i],self.__master)
+            tblist.append(tb)
+    
+        for i in range(len(tilelist)):
+            tb = tblist[i]
+            button = tb.get_button()
+            tile = tb.get_tile()
+    
+            def handler(event,tile=tile):
+                return handle_click(event,tile)
+    
+            button.bind("<Button-1>",handler)
+            button.pack(side=tk.LEFT) 
+            buttonlist.append(button)
+        return (tblist,buttonlist)
+
+
+
+def handle_click(event,tile):
+    print(tile," was clicked!")
+
+
+window = tk.Tk()
+tilelist = [Tiles("dragons",1),Tiles("dragons",1),Tiles("dragons",1),
+          Tiles("dragons",2),Tiles("dragons",2),Tiles("dragons",2),
+          Tiles("dragons",3),Tiles("dragons",3),Tiles("dragons",3),
+          Tiles("winds",1),Tiles("winds",1),Tiles("winds",1),
+          Tiles("winds",2),Tiles("winds",2)]
+
+frame = tk.Frame(master=window)
+frame2 = tk.Frame(master=window)
+
+frame.grid(row=0,column=0)
+frame2.grid(row=1,column=1)
+
+bar = BarOfTiles(tilelist,frame)   
+bar2 = BarOfTiles(tilelist,frame2)  
+
+tblist = bar.packtiles()
+tblist2 = bar2.packtiles()
+
+
+tk.mainloop()
+
+"""
+
+### sample: working for more 2 bars of tiles
+### important! in tkinter if you don't keep some refernece to the PhotoImage object,
+### it will be garbage collected and the image will be cleared even if it is
+### displayed by a Tkinter widget! keep an extra reference to the image object!    
+
+window = tk.Tk()
+tilelist = [Tiles("dragons",1),Tiles("dragons",1),Tiles("dragons",1),
+          Tiles("dragons",2),Tiles("dragons",2),Tiles("dragons",2),
+          Tiles("dragons",3),Tiles("dragons",3),Tiles("dragons",3),
+          Tiles("winds",1),Tiles("winds",1),Tiles("winds",1),
+          Tiles("winds",2),Tiles("winds",2)]
+
+frame = tk.Frame(master=window)
+frame2 = tk.Frame(master=window)
+
+#frame.pack()
+
+frame.grid(row=0,column=0)
+frame2.grid(row=1,column=1)
+
+
+def handle_click(event,tile):
+    print(tile," was clicked!")
+    
+    
+
+        
+
+def packtiles(tilelist,frame):
+    tblist = []
+    buttonlist = []
+    for i in range(len(tilelist)):
+        tb = TileButton(tilelist[i],frame)
+        tblist.append(tb)
+    
+    for i in range(len(tilelist)):
+        tb = tblist[i]
+        button = tb.get_button()
+        tile = tb.get_tile()
+    
+        def handler(event,tile=tile):
+            return handle_click(event,tile)
+        
+        button.bind("<Button-1>",handler)
+        button.pack(side=tk.LEFT)
+        
+        buttonlist.append(button)
+    return tblist  
+
+tblist = packtiles(tilelist,frame)
+tblist2 = packtiles(tilelist,frame2)
+#packtiles(tilelist,frame2)
+
+tk.mainloop()  
+
+
+
+
+
+
+
+### sample working bar of tiles
 
 tilelist = [Tiles("dragons",1),Tiles("dragons",1),Tiles("dragons",1),
           Tiles("dragons",2),Tiles("dragons",2),Tiles("dragons",2),
@@ -118,8 +250,6 @@ for i in range(len(tilelist)):
 tk.mainloop()
     
  
-"""
-
 #### sample workable button with picture
 
 import os
