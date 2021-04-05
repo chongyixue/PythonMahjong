@@ -10,10 +10,14 @@ import os
 import tkinter as tk
 from mahjong_components import Tiles
 from PIL import Image, ImageTk
-
+from mahjong_components import *
+from mahjong_players import *
+from mahjong_rules import *
+from mahjong_game_class import *
 
 class TileButton():
     def __init__(self,tile,masterframe,clickable=True,**options):
+        # if tile== None: will print green tile
         self.__tile = tile
 
         self.__frame = masterframe
@@ -54,8 +58,10 @@ class TileButton():
                 scale = self.__scale_relative
             self.__orientation = orientation
         self.__compound = compound
-        
-        self.__text = str(self.__tile)
+        if self.__tile:
+            self.__text = str(self.__tile)
+        else:
+            self.__text = " "
         self.__showtext = True
         
         if 'hidden' in options.keys():
@@ -104,6 +110,8 @@ class TileButton():
     
     def imagename(self):
         tile = self.__tile
+        if not tile:
+            return "green.jpg"
         if str(tile) == "Joker":
             name = "joker"
         
@@ -133,7 +141,7 @@ class TileButton():
                 else: #3:
                     name =  "bb"
 
-        else: # "bonus tile"
+        elif tile.bonus: # "bonus tile"
             if tile.family == "seasons":
                 name = "seas" + str(tile.number)
             else: # "flowers"
@@ -147,9 +155,10 @@ class TileButton():
 class BarOfTiles():
     def __init__(self,tilelist,frame,**options):
         self.__master = frame
-        self.__tilelist = tilelist
+        self.__tilelist = []
         self.__orientation = 'upright' 
         self.__framename = ""
+        self.options = options
         if 'framename' in options.keys():
             self.__framename = options['framename']
         
@@ -163,42 +172,305 @@ class BarOfTiles():
         elif self.__orientation == "right":
             pack = tk.BOTTOM
         self.__pack = pack
-        self.packtiles(**options)
+        self.packtiles(tilelist,**options)
 
-    def packtiles(self,**options):
-        tblist = []
-        buttonlist = []
-        tilelist = self.__tilelist
+    def packtiles(self,tilelist,**options):
+        self.tblist = []
+        self.buttonlist = []        
         for i in range(len(tilelist)):
-            tb = TileButton(tilelist[i],self.__master,
-                            **options)
-            tblist.append(tb)
+            self.addtile(tilelist[i])
+        
+    def get_tilelist(self):
+        return self.__tilelist
     
-        for i in range(len(tilelist)):
-            tb = tblist[i]
-            button = tb.get_button()
-            tile = tb.get_tile()
-    
-            def handler(event,tile=tile,framename=self.__framename):
-                return handle_click(event,tile=tile,framename=framename)
-                #return handle_click(event,tile,framename)
-    
-            button.bind("<Button-1>",handler)
-            button.pack(side=self.__pack) 
-            buttonlist.append(button)
-            self.tblist = tblist
-            self.buttonslit = buttonlist
+    def addtile(self,tile):
+        self.__tilelist.append(tile)
+        tboptions = {k:v for k,v in self.options.items()}
+        tboptions['hidden'] = False
+        tb = TileButton(tile,self.__master,**tboptions)
+        self.tblist.append(tb)
+        button = tb.get_button()
+        #tile,framename,button,tb,baroftile
+        args = {'tile':tile,'framename':self.__framename,'button':button,
+                'tb':tb,'baroftile':self}
+        def handler(event,args=args):
+            return handle_click(event,**args)
+        button.bind("<Button-1>",handler)
+        button.pack(side=self.__pack) 
+        self.buttonlist.append(button)
+        
+    def removetile(self,i):
+        if type(i) == int:
+            self.tblist.pop(i)
+            button = self.buttonlist.pop(i)
+            button.destroy()
+            self.__tilelist.pop(i)
+        else: # i is a tile
+            for (j,tile) in enumerate(self.__tilelist):
+                if i == tile:
+                    self.removetile(j)
+                    break
+    def removetiles(self,tilelist):
+        for tile in tilelist:
+            self.removetile(tile)
+                
+ 
+
+#def handle_click(event,tile, framename):
+#    print(tile," from ",framename ," was clicked!")
+def handle_click(event,**args):
+    # **args: tile,framename,button,tb,baroftile
+    print(args['tile']," from ",args['framename']," was clicked!")
 
 
+# gamemanager.pass_info_to_player(self,n):
+# return the state of affairs: 
+# ([previous hand, own hand, next hand, next next hand],
+#        discardedpile, ntilesleft,gamelog)
+
+class MahjongTable():
+    def __init__(self, window, playernumber,
+                 handlist, discardpile, ntilesleft, gamelog, **options):
+        self.__playernumber = playernumber
+        self.__nplayers = 3 # don't worry, will add one down there
+        self.__previoushand = handlist[0]
+        self.__ownhand = handlist[1]
+        self.__nexthand = handlist[2]
+        self.__handlist = handlist
+        
+        if len(handlist) == 4:
+            self.__nextnexthand = handlist[3]
+            self.__nplayers += 1
+            
+        self.__discardpile = discardpile
+        self.__ntilesleft = ntilesleft
+        self.__gamelog = gamelog
+        self.__window = window
+        self.__initialize_table()
+        
+    def __initialize_table(self):
+        w = self.__window
+        n = self.__nplayers
+        # the cycle goes leftplayer, player, rightplayer, across
+        self.__hiddenframes = [tk.Frame(master=w) for _ in range(n)]
+        self.__displayframes = [tk.Frame(master=w) for _ in range(n)]
+        self.__discardframe = tk.Frame(master=w)
+        hiddentuples = [(2,0),(4,2),(2,4),(0,2)]
+        displaytuples = [(2,1),(3,2),(2,3),(1,2)]
+        for k,frame in enumerate(self.__hiddenframes):
+            (i,j) = hiddentuples[k]
+            frame.grid(row=i,column=j)
+            frame2 = self.__displayframes[k]
+            (i,j) = displaytuples[k]
+            frame2.grid(row=i,column=j)
+        
+        barpairslist = []
+        for i in range(n):
+            barpairtuple = self.__populate_barpair(i)
+            barpairslist.append(barpairtuple)
+        self.__barpairslist = barpairslist
+        
+    
+    def get_barpairslist(self):
+        return self.__barpairslist
+    
+    def __populate_barpair(self,playerindex):
+        hiddenornot = True
+        if playerindex == 1:
+            hiddenornot = False
+        orientations = ['left','player','right','invert']
+        orientation = orientations[playerindex]
+        hiddenframe = self.__hiddenframes[playerindex]
+        displayframe = self.__displayframes[playerindex]
+        hand = self.__handlist[playerindex]
+        hiddenbar = BarOfTiles(hand.hidden,hiddenframe,
+                               framename = orientation+"_hidden",
+                               hidden = hiddenornot,
+                               orientation = orientation
+                    )
+        displaybar = BarOfTiles(
+                hand.bonus + hand.shown,displayframe,
+                framename = orientation+"_display",
+                orientation = orientation
+                    )
+
+        return (hiddenbar,displaybar)     
+    
+    
+    def updatehand(self,relativeplayer,newhand):
+        ## important! self.__handlist is not always updated
+        self.__handlist[relativeplayer] = newhand
+        newhidden = newhand.hidden 
+        newdisplay = newhand.shown + newhand.bonus
+        
+        oldhiddenbar,olddisplaybar = self.__barpairslist[relativeplayer]
+        oldhiddentiles = oldhiddenbar.get_tilelist()[:]
+        olddisplaytiles = olddisplaybar.get_tilelist()[:]
+        
+        # hidden        
+        (add,sub) = Helperfunctions.tiledifference(oldhiddentiles,newhidden)
+        print("to add: ",add)
+        print("to subtrat: ",sub)
+
+        for t in add:
+            self.addtile(relativeplayer,t,location='hidden')
+        for t in sub:
+            self.removetile(relativeplayer,t,location='hidden')
+        
+        # display 
+        (add,sub) = Helperfunctions.tiledifference(
+                                olddisplaytiles,newdisplay
+                                )
+        for t in add:
+            self.addtile(relativeplayer,t,location='display')
+        for t in sub:
+            self.removetile(relativeplayer,t,location='display')
+        
+
+    
+    # this one is to test adding a tile. Will be modified to be more generic
+    def addtile(self,relativeplayer,tile,location='hidden'):
+        # not ideal coding: have to manually add/remove tile from 
+        # mahjong table self.__handlist instead of getting from baroftiles
+        # because baroftiles does not distinguish between shown and bonus
+        hiddenordisplay = 0
+        if location != 'hidden':
+            hiddenordisplay = 1
+           
+        baroftiles = self.__barpairslist[relativeplayer][hiddenordisplay]
+        baroftiles.addtile(tile)
+        
+    def removetile(self,relativeplayer,index,location='hidden'):
+        hiddenordisplay = 0
+        if location != 'hidden':
+            hiddenordisplay = 1
+                
+        baroftiles = self.__barpairslist[relativeplayer][hiddenordisplay]
+        baroftiles.removetile(index)
+        
+        
+        
+
+class Helperfunctions():
+    def tiledifference(oldlist,newlist):
+        # returns tuple ([add to oldlist],[subtract from old list])
+        # eg. oldlist = [1,2,3,4,5], newlist = [2,3,4,5,6]
+        # return: ([6],[1])
+        old = sorted(oldlist, key=lambda x: (x is None, x))
+        new = sorted(newlist, key=lambda x: (x is None, x))
+        p1, p2 = 0,0
+        subtract = []
+        add = []
+        while True:
+            if p1 >= len(old) or p2 >= len(new):
+                break
+            
+            if old[p1] == new[p2]:
+                p1 += 1
+                p2 += 1
+                
+            elif old[p1] < new[p2]:
+                subtract.append(old[p1])
+                p1 += 1
+                
+            else:
+                add.append(new[p2])
+                p2 += 1
+        if old[p1:]:
+            subtract += old[p1:]
+        if new[p2:]:
+            add += new[p2:]
+        return (add,subtract)
+
+
+
+
+        
+#a = [Tiles('bamboo',3),Tiles('dragons',2),Tiles('winds',1)]
+#b = [Tiles('bamboo',3),Tiles('dragons',3),Tiles('winds',1),Tiles('dots',1),None]
+#add, sub = Helperfunctions.tiledifference(a,b)    
+#print("add: ",add)
+#print("sub: ",sub)
+
+
+try:
+    print(startmarker)
+    print("reuse game")
+except:
+    playerinstancelist = [Player(0),Player(1),
+                      Player(2),Player(3)] 
+    game = GameManager(playerinstancelist=playerinstancelist)
+    game.startgame()     
+
+# gamemanager.pass_info_to_player(self,n):
+# return the state of affairs: 
+# ([previous hand, own hand, next hand, next next hand],
+#        discardedpile, ntilesleft,gamelog)
+
+
+    (handlist,discardpile, ntilesleft,gamelog) = game.pass_info_to_player(2)
+    startmarker = 1
+   
+
+
+window = tk.Tk()
+
+mahjongtable = MahjongTable(window, 2,
+                 handlist[:], discardpile, ntilesleft, gamelog)
+
+tk.mainloop()
+
+window = tk.Tk()
+
+mahjongtable = MahjongTable(window, 2,
+                handlist[:], discardpile, ntilesleft, gamelog)
+
+#mahjongtable.removetile(1)
+
+mahjongtable.updatehand(1,handlist[2])
+mahjongtable.updatehand(2,handlist[1])
+mahjongtable.addtile(1,Tiles("joker",0))
+mahjongtable.removetile(1,8)
+tk.mainloop()
+    
+"""
+### sample table taht works, encapsulated in a class, need to add functions now
+###
+  
+playerinstancelist = [Player(0),Player(1),
+                      Player(2),Player(3)] 
+game = GameManager(playerinstancelist=playerinstancelist)
+game.startgame()     
+
+# gamemanager.pass_info_to_player(self,n):
+# return the state of affairs: 
+# ([previous hand, own hand, next hand, next next hand],
+#        discardedpile, ntilesleft,gamelog)
+(handlist,discardpile, ntilesleft,gamelog) = game.pass_info_to_player(2)
+
+
+
+window = tk.Tk()
+mahjongtable = MahjongTable(window, 
+                 handlist, discardpile, ntilesleft, gamelog)
+
+
+tk.mainloop()
+
+
+
+
+### sample table that works but not yet encapsulated in a class
+###
 
 #def handle_click(event,tile, framename):
 #    print(tile," from ",framename ," was clicked!")
 def handle_click(event,**args):
     print(args['tile']," from ",args['framename']," was clicked!")
-
+        
 
 window = tk.Tk()
-tilelist = [Tiles("dragons",1),Tiles("dragons",1),Tiles("dragons",1),
+tilelist = [None,Tiles("dragons",1),Tiles("dragons",1),
           Tiles("dragons",2),Tiles("dragons",2),Tiles("dragons",2),
           Tiles("dragons",3),Tiles("dragons",3),Tiles("dragons",3),
           Tiles("winds",1),Tiles("winds",1),Tiles("winds",1),
@@ -228,8 +500,6 @@ bar4 = BarOfTiles(tilelist,frame4,framename = 'left',
 
 
 tk.mainloop()
-
-"""
 
 ### sample: working for more 2 bars of tiles
 ### important! in tkinter if you don't keep some refernece to the PhotoImage object,

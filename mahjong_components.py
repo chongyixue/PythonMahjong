@@ -74,19 +74,24 @@ class Tiles:
         return self.shortname()
     
     def __eq__(self,other):
-        return self.id == other.id
-    
+        if other:
+            return self.id == other.id
+        return False
     def __sub__(self,other):
         if not self.suits or not other.suits:
             return (1 - 1*(self == other))*100
         if self.family != other.family:
             return 100
         return self.id - other.id
+    # None is "smallest"
     def __lt__(self,other):
-        return self.id < other.id
+        if other:
+            return self.id < other.id
+        return True
     def __gt__(self,other):
-        return self.id > other.id
-        
+        if other:
+            return self.id > other.id
+        return False        
 
     
 class Hand():
