@@ -216,11 +216,7 @@ class BarOfTiles():
                 
  
 
-#def handle_click(event,tile, framename):
-#    print(tile," from ",framename ," was clicked!")
-def handle_click(event,**args):
-    # **args: tile,framename,button,tb,baroftile
-    print(args['tile']," from ",args['framename']," was clicked!")
+
 
 
 # gamemanager.pass_info_to_player(self,n):
@@ -383,14 +379,242 @@ class Helperfunctions():
         return (add,subtract)
 
 
+#def handle_click(event,tile, framename):
+#    print(tile," from ",framename ," was clicked!")
+def handle_click(event,**args):
+    # **args: tile,framename,button,tb,baroftile
+    print(args['tile']," from ",args['framename']," was clicked!")
+    args['button'].destroy()
 
 
+class GUIgame(GameManager):
+    def __init__(self, playerinstancelist = [HumanPlayer(1),Player(2),
+                        Player(3),Player(4)],autoarrange = True,**options):
+        self.playerlist = playerinstancelist
+        super().__init__(players = len(self.playerlist,**options))
+        
+        self.autoarrange = autoarrange
+    
+    # modify this from the GameManager class
+    def startgame(self):
+        
+        #makedecision(self,gamestate,
+        #             handlists,discardpile, ntileleft, gamelog):
+        # states = ['start','drawn','discard','out of cards','end']
+        # gamestate = [states[?], player#]
+        # RETURN (decision, n)
+
+        # the only difference here while --> if
+        quickfix = 0
+        while quickfix < 1:
+            
+            if self.autoarrange:
+                for hand in self.playerhands:
+                    hand.arange()
+
+            if self.state[0] in ["drawn","pong","ate","gong"]: 
+                # some player drawn. Ask for decision (which tile to discard)
+                playertoact = self.playerlist[self.state[1]]
+                info_forplayer = self.pass_info_to_player(self.state[1])
+                
+                # protection against rogue answers
+                canwin = True
+                chances = 3
+                for _ in range(chances):
+                    (decision,*n) = playertoact.makedecision(self.state,*info_forplayer)
+                    #print("decision ",decision, "  n=",n)
+                    if decision == "win" and canwin:
+                        canwin = self.win(self.state[1])
+                        self.printstate()
+                        #print(canwin)
+                        if canwin:
+                            break
+                    else:
+                        canwin = False
+                        break
+                if canwin:
+                    break
+                        
+                # decision = "discard by no choice here"
+                if len(n)==0:
+                    i = 0
+                else:
+                    i = n[0]
+                if i == None:
+                    i = 0
+                self.playerdiscard(i)
+                        
+                    
+                    
+            elif self.state[0] == "discard":
+                # some player discard a tile. Ask everyone for a decision
+                every_player_choose = []
+                for i in range(1,self.players):
+                    p = self.next_player(i)
+                    playertoact = self.playerlist[p]
+                    info_forplayer = self.pass_info_to_player(p)
+                    (decision,*n) = playertoact.makedecision(self.state,*info_forplayer)
+                    #print("decision: ",decision, " \n n: ", n)
+                    every_player_choose.append([decision,*n])
+                #print(every_player_choose)
+                rankedoptions = self.next_player_moves(*every_player_choose)
+                #print(rankedoptions)
+                self.dotherankedmoves(rankedoptions)
+                
+                    
+
+            elif self.state[0] == "out of cards":
+                # out of cards
+                self.printstate()
+                break
+            
+            elif self.state[0] in ["win", "end"]:
+                # end game
+                self.printstate()
+                break
+            
+            else:
+                print("state ",self.state[0], " not recognized")
+                break
+            
+            
+            self.printstate()
+            quickfix += 1
+            
+        print("++++++++++++ Hope you enjoyed the game ++++++++++++++++++")
+                
+        
+    #def dotherankedmoves(self,rankedoptions):
+    #def dothemove(self,player,choice,*n):   
+    #def notifystate(self,special = None): # special = ['pong',3]        
+    #def cheat(self,option='almost winning',player=1):
+    #def pass_info_to_player(self,n):
+    #def printstate(self,printoutstr = True):
+
+
+## really simple Combination with the game manager
+
+class GUIplayer(Player):
+    def __init__(self, playernumber = 1):
+        self.strategy = "GUI interface"
+        self.playernumber = playernumber
+    
+    
+    def makedecision(self,gamestate, 
+                     handlists, discardpile, ntilesleft, gamelog):
+        # handlist = [previous hand, own hand, next hand, next next hand]
+        
+        # the few situations where decision is needed
+        # 1. you drawn/ate/pong/gong a tile, now you have to pick one to discard
+        # 2. you drawn a tile, now you need to decide if you won, or to discard
+        # 3. others discarded a tile, decide to pong/gong/ate/win/do nothing
+        
+        # states = ['start','drawn','discard','out of cards','end']
+        # gamestate = [states[?], player#]
+        # RETURN (decision, *n)
+ 
+        #   mapping = ["do nothing", "draw","take in","pong with joker",
+        #           "pong","gong","win"]
+
+        if gamestate[0] == "discard": # somebody discarded, do you pong, eat, gong, nothing?
+            # implement wait for a few seconds then move on if no reaction, while 
+            # activating the "pong", "eat", "gong","win" button 
+            pass
+            
+        if gamestate[0] == "drawn": # you drawn
+            # implement let player click tiles to discard 
+            # also enable rearrange tile function
+            pass
+
+        if gamestate[0] in ["ate","pong","gong"]: #what do you discard?
+            # prompt player to choose tile to throw
+            pass
+        return ("nothing",0)
+    
+    def discard_simple(self,gamestate,handlists,discardpile,ntilesleft,gamelog):
+        minn = 14
+        mini = 0
+        for (i,t) in enumerate(handlists[1].hidden):
+            n = Rules.relatable_to_hand(t,handlists[1]) 
+            if n < minn:
+                (minn,mini) = (n,i)
+        return mini
+    
+    def action_win_simple(self,gamestate,handlists,discardpile,ntilesleft,gamelog):
+        if len(discardpile) < 1:return False
+        group = handlists[1].hidden + [discardpile[-1]]
+        winningornot = Rules.iswinning(group)[0]
+        return winningornot
+    
+    def action_take_simple(self,gamestate,handlists,discardpile,ntilesleft,gamelog):
+        decision = random.choice(["gong","pong","eat","nothing","draw"])
+        #print("-----decision-------",decision)
+        indices = [i for i in range(len(handlists[1].hidden))]
+        four = []
+        for k in range(4):
+            l = len(indices)
+            randi = random.randint(0,l-1)
+            four.append(indices.pop(randi))
+        
+        if decision in ["draw","nothing"]:
+            return ("nothing",[])
+        if decision == "eat":
+            return ("take in",*four[:3])
+        if decision == "pong":
+            return ("pong",*four[:3])
+        if decision == "gong":
+            return ("gong",*four[:4])
+        if decision == "win":
+            return ("win",[])
+        return ("nothing",[])
+    
+    
+
+
+playerinstancelist = [Player(0),GUIplayer(1),
+                      Player(2),Player(3)] 
+    
+
+game = GUIgame(playerinstancelist=playerinstancelist)
+
+window = tk.Tk()
+
+def startgame(window):
+    print("start game!")
+    window.destroy()
+    window = tk.Tk()
+    
+    (handlist,discardpile, ntilesleft,gamelog) = game.pass_info_to_player(2)
+    mahjongtable = MahjongTable(window, 2,
+                 handlist[:], discardpile, ntilesleft, gamelog)
+    window.mainloop()
+    game.startgame() # modify 
+    
+    
+def startgame_handler(event,window = window):
+    startgame(window)
+
+btn_start = tk.Button(master=window,text = "start game")
+btn_start.bind("<Button-1>",startgame_handler)
+btn_start.pack()
+
+tk.mainloop()
+
+
+
+
+
+### short function test
         
 #a = [Tiles('bamboo',3),Tiles('dragons',2),Tiles('winds',1)]
 #b = [Tiles('bamboo',3),Tiles('dragons',3),Tiles('winds',1),Tiles('dots',1),None]
 #add, sub = Helperfunctions.tiledifference(a,b)    
 #print("add: ",add)
 #print("sub: ",sub)
+
+
+"""
+### working sample of updating the hands given a new group.
 
 
 try:
@@ -432,8 +656,12 @@ mahjongtable.updatehand(2,handlist[1])
 mahjongtable.addtile(1,Tiles("joker",0))
 mahjongtable.removetile(1,8)
 tk.mainloop()
+
+
+
+
     
-"""
+
 ### sample table taht works, encapsulated in a class, need to add functions now
 ###
   
