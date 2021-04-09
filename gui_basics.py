@@ -112,7 +112,11 @@ for i in range(n):
                 bg = colors[1]
         )
         framels.append(frame)
+        
         frame.grid(row=i, column=j, padx=5, pady=5,sticky="nesw")
+        
+        if len(framels) == 5:
+            continue
         
         label = tk.Label(
                 master=frame,
@@ -177,8 +181,60 @@ button2 = tk.Button(
         )
 button2.pack(fill=tk.BOTH)
 
+
+def addbutton():
+    bt = tk.Button(master=f,text='added')
+    bt.grid(row = 4,column=4)
+
+f = framels[4]
+b = tk.Button(master=f, text='1')
+b2 = tk.Button(master=f, text='2')
+b3 = tk.Button(master=f, text='3')
+b4 = tk.Button(master=f, text='4')
+b5 = tk.Button(master=f, text='5')
+b6 = tk.Button(master=f, text='6')
+b7 = tk.Button(master=f, text='7',command=addbutton)
+b.grid(row=0,column=0)
+b2.grid(row=0,column=1)
+b3.grid(row=0,column=2)
+b4.grid(row=1,column=0)
+b5.grid(row=1,column=1)
+b6.grid(row=1,column=2)
+b7.grid(row=2,column=0)
+
+
 window.mainloop()
         
+
+"""
+w = tk.Tk()
+b = tk.Button(master=w, text='1')
+b2 = tk.Button(master=w, text='2')
+b3 = tk.Button(master=w, text='3')
+b4 = tk.Button(master=w, text='4')
+b5 = tk.Button(master=w, text='5')
+b6 = tk.Button(master=w, text='6')
+b7 = tk.Button(master=w, text='7')
+
+
+
+b.pack(side = tk.TOP)
+b2.pack(side=tk.TOP)
+b3.pack(side = tk.LEFT)
+b4.pack(side = tk.LEFT)
+b5.pack(side = tk.TOP)
+b6.pack(side = tk.TOP)
+b7.pack(side = tk.TOP)
+
+
+window.mainloop()
+"""
+
+
+
+
+
+
 
 
 

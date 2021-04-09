@@ -320,14 +320,14 @@ class Game():
         
      
 class GameManager(Game):
-    """
+
     def __init__(self, playerinstancelist = [HumanPlayer(1),Player(2),
                         Player(3),Player(4)],autoarrange = True,**options):
         self.playerlist = playerinstancelist
-        super().__init__(players = len(self.playerlist,**options))
+        super().__init__(players = len(self.playerlist),**options)
         
         self.autoarrange = autoarrange
-    """
+
     def startgame(self):
         
         #makedecision(self,gamestate,
